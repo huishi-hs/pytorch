@@ -461,6 +461,13 @@ def mm(
             return torch.sum(
                 self.squeeze(0) * input2.squeeze(-1), dim=0, keepdim=True
             ).unsqueeze(0)
+    # (https://github.com/pytorch/pytorch/issues/186348)
+    if guard_or_false(input2.size(0) < 8) and guard_or_false(input2.size(1) < 8):
+        counters["inductor"]["decompose_mm"] += 1
+        # self: [M, K] -> [M, K, 1]; input2: [K, N] -> broadcast [M, K, N]
+        # element-wise mul: [M, K, N];
+        # reduce sum over K (dim=1): [M, N]
+        return (self.unsqueeze(-1) * input2).sum(dim=-2)
     return NotImplemented
 
 
